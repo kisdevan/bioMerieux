@@ -1,0 +1,44 @@
+name: Deploy static HTML to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]   # 기본 브랜치가 main이 아니면 바꿔주세요
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # (옵션) 만약 루트가 아니라 public/에 파일이 있다면 public/만 올리도록 지정
+      - name: Setup artifact
+        run: |
+          mkdir -p ./_site
+          # 루트에 index.html이 있으면 아래 rsync에서 제외 패턴 조정 필요 없음
+          rsync -av --delete \
+            --exclude '.git' \
+            --exclude '.github' \
+            ./ ./_site/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
